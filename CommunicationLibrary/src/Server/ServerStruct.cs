@@ -14,6 +14,9 @@ public struct ServerStruct
         // Avoid multiple enumeration.
         PeerIdentification = new Dictionary<IPAddress, string>();
     }
+    /// <summary>
+    /// The amount of connected peers.
+    /// </summary>
     public int connectedPeers;
     /// <summary>
     /// The way peers are identified.
@@ -22,15 +25,19 @@ public struct ServerStruct
     /// </summary>
     public IDictionary<IPAddress, string> PeerIdentification { get; private set; }
 
+    /// <summary>
+    /// Serializes the current instance's <see cref="PeerIdentification"/> Dictionary into a string.
+    /// </summary>
+    /// <returns>A new <see cref="String"/> instance, its contetns being the serialized <see cref="PeerIdentification"/>.</returns>
     public readonly string SerializePeers()
     {
         return JsonConvert.SerializeObject(PeerIdentification);
     }
     /// <summary>
-    /// Deserialize a string into a Dictinary with peer data.
+    /// Deserialize a <see cref="String"/> into a Dictinary with peer data.
     /// </summary>
-    /// <param name="peers"></param>
-    /// <exception cref="NullParameterException"></exception>
+    /// <param name="peers">The <see cref="String"/> containing the serialized data of the <see cref="PeerIdentification"/> Dictionary</param>
+    /// <exception cref="NullParameterException">The <see cref="String"/> in the <paramref name="peers"/> parameter is null.</exception>
     public void DeserializePeers(string peers)
     {
         try
