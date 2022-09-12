@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -125,9 +126,74 @@ public class WrappedSocket : IEquatable<WrappedSocket>
 
         // Wait for the SocketMode, when received, if it is NOT 1 (Expected size, throw an exception)
         if (receivedLength is not 1)
-            throw new InvalidDataException($"The other party has transmitted invalid data, namely, {receivedLength} bytes instead of 1.");
+            throw new InvalidDataException($"The other party has transmitted invalid data, namely, {receivedLength.ToString(CultureInfo.CurrentCulture)} bytes instead of 1.");
 
         return (SocketMode)socketMode[0];
+    }
+    /// <summary>
+    /// Get the content of the Underlying Socket, but, treat it as <paramref name="modeOfSocket"/> specifies.
+    /// </summary>
+    /// <param name="modeOfSocket">The mode in which the data should be treated.</param>
+    /// <returns>A Task of Type Object containing the serialized data.</returns>
+    /// <exception cref="NotImplementedException">Thrown if the API method is not implemented.</exception>
+    /// <exception cref="IncompleteDataException">Thrown if Base64 encoded string is incorrect, only applies to cases in which <paramref name="modeOfSocket"/> is <see cref="CommunicationLibrary.SocketMode.EncodedMessage"/>.</exception>
+    public async Task<Object?> GetSocketContent(SocketMode modeOfSocket)
+    {
+        // The Hello packet is meant to indicate a new connection, no other data is expected.
+        if (modeOfSocket is SocketMode.Hello)
+            return null;
+
+        List<byte> receivedBytes = new();
+        byte remainingTries = 3;
+
+        while (remainingTries > 0)
+        {
+            byte[] temporalBuffer = new byte[1024];
+            int read = await _underlyingSocket.ReceiveAsync(temporalBuffer, SocketFlags.None).ConfigureAwait(false);
+
+            receivedBytes.AddRange(temporalBuffer);
+
+            if (read is 0)
+            {
+                // Wait a timeout, expecting new data to flow in...
+                await Task.Delay(Constants.RECIEVE_TIMEOUT).ConfigureAwait(false);
+                remainingTries--; // Decrease remaining tries.
+            }
+        }
+
+        byte[] arrayedBuffer = receivedBytes.ToArray();
+
+        receivedBytes.Clear(); // Clear list.
+        if (modeOfSocket is SocketMode.Message)
+        {
+            return Encoding.UTF8.GetString(arrayedBuffer);
+        }
+
+        if (modeOfSocket is SocketMode.EncodedMessage)
+        {
+            string tmp = Encoding.UTF8.GetString(arrayedBuffer);
+            byte[] buffer = new byte[tmp.Length];
+            // Attempt conversion.
+            if (Convert.TryFromBase64String(tmp, buffer, out int writtenBytes))
+            {
+                // Get resultant bytes and return.
+                return Encoding.UTF8.GetString(buffer);
+            }
+            throw new IncompleteDataException($"The SocketMode indicated an Encoded, Base64 message, the length of the final string is {writtenBytes.ToString("G", CultureInfo.CurrentCulture)} bytes, but the expected one was {tmp.Length.ToString("G", CultureInfo.CurrentCulture)}. Have you verified parameter?");
+        }
+
+        if (modeOfSocket is SocketMode.Discover)
+        {
+            // TODO: Implement a way to share Peers between Peers, or just to return the Server list.
+        }
+
+        if (modeOfSocket is SocketMode.File)
+        {
+            // TODO: Implement a way to share Files between users. or just copy the byte[] to a MemoryStream and return it as such.
+            // ! Likely doing option (B) 
+        }
+
+        throw new NotImplementedException("Likely missing API implementation, or just, straightforward, forgot to finish a part of it.");
     }
 
     #endregion Socket Implementation (Custom Methods)

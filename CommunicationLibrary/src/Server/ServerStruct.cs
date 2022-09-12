@@ -30,9 +30,8 @@ public struct ServerStruct
     /// </summary>
     /// <returns>A new <see cref="String"/> instance, its contetns being the serialized <see cref="PeerIdentification"/>.</returns>
     public readonly string SerializePeers()
-    {
-        return JsonConvert.SerializeObject(PeerIdentification);
-    }
+        => JsonConvert.SerializeObject(PeerIdentification);
+
     /// <summary>
     /// Deserialize a <see cref="String"/> into a Dictinary with peer data.
     /// </summary>
@@ -50,7 +49,7 @@ public struct ServerStruct
         }
         catch
         {
-            throw;
+            throw; // Throw the caught Exception.
         }
     }
 }

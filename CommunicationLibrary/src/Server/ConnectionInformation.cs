@@ -58,7 +58,6 @@ public struct ConnectionInformation
             }
 
             return tmp;
-
         }
         finally
         {

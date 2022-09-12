@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 namespace CommunicationLibrary;
 
@@ -89,8 +90,6 @@ public class Server
     }
     private async Task ServerLoop()
     {
-        const int bufferSize = 131072; // 8192*16
-        const int timeOutRecieve = 5000;
         while (!stopServer)
         {
             await Task.Delay(delay).ConfigureAwait(false);
@@ -102,34 +101,24 @@ public class Server
             Socket clientSock = await tcpListener.AcceptSocketAsync().ConfigureAwait(false);
 
             // Set buffer sizes.
-            clientSock.SendBufferSize = bufferSize;
-            clientSock.ReceiveBufferSize = bufferSize;
+            clientSock.SendBufferSize = Constants.BUF_SIZE;
+            clientSock.ReceiveBufferSize = Constants.BUF_SIZE;
 
             WrappedSocket wrappedSock = new(clientSock, useEncodedMessage: true);
 
             SocketMode modeOfSocket = await wrappedSock.GetSocketMode().ConfigureAwait(false);
 
-            byte remainingTries = 3;
-            List<byte> buffer = new();
+            Object? content = await wrappedSock.GetSocketContent(modeOfSocket).ConfigureAwait(false);
 
-            while (remainingTries > 0)
+            if (content is null && modeOfSocket is SocketMode.Hello)
             {
-                byte[] temporalBuffer = new byte[1024];
-                int read = await clientSock.ReceiveAsync(temporalBuffer, SocketFlags.None).ConfigureAwait(false);
-
-                buffer.AddRange(temporalBuffer);
-
-                if (read == 0)
-                {
-                    // Wait a timeout, expecting new data in.
-                    await Task.Delay(timeOutRecieve).ConfigureAwait(false);
-                    remainingTries--; // Decrease remaining tries.
-                }
+                // TODO: OnConnectionStablished event.
+                // Hello Recieved, Fire OnConnectionStablished Event.
             }
 
             // TODO: Implement events that will fire after ConnectionInformation for the current, running connection is created, then, add them to a dictionary to keep track of them.
 
-            ConnectionInformation cnnInfo = new(modeOfSocket, buffer.ToArray(), wrappedSock);
+            ConnectionInformation cnnInfo = new(modeOfSocket, Encoding.UTF8.GetBytes((string)content!), wrappedSock);
         }
         serverRunning = false;
     }
