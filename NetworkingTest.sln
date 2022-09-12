@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30114.105
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommunicationLibrary", "CommunicationLibrary\CommunicationLibrary.csproj", "{369A2C3A-3E3B-417D-A8B0-92C81BD28338}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommunicationLibraryTest", "CommunicationLibraryTest\CommunicationLibraryTest.csproj", "{C63C7C5F-3EE6-45FB-8B44-B67D8A890CB7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{369A2C3A-3E3B-417D-A8B0-92C81BD28338}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{369A2C3A-3E3B-417D-A8B0-92C81BD28338}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{369A2C3A-3E3B-417D-A8B0-92C81BD28338}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{369A2C3A-3E3B-417D-A8B0-92C81BD28338}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C63C7C5F-3EE6-45FB-8B44-B67D8A890CB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C63C7C5F-3EE6-45FB-8B44-B67D8A890CB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C63C7C5F-3EE6-45FB-8B44-B67D8A890CB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C63C7C5F-3EE6-45FB-8B44-B67D8A890CB7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
