@@ -108,6 +108,28 @@ public class WrappedSocket : IEquatable<WrappedSocket>
     public Socket GetUnderlyingSocket()
         => _underlyingSocket;
 
+    /// <summary>
+    /// Get the corresponding <see cref="SocketMode"/> of a request.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> with Type <see cref="SocketMode"/> representing the on-going asynchronous operation.</returns>
+    /// <exception cref="InvalidDataException">Thrown if the packet is not the expected one.</exception>
+    /// <remarks>
+    /// This method should be call after accepting the connection,
+    /// this is due to the deterministic nature of it,
+    /// being that the <see cref="SocketMode"/> will be representing by a one <see cref="Byte"/> sized packet at the start of the connection.
+    /// </remarks>
+    public async Task<SocketMode> GetSocketMode()
+    {
+        byte[] socketMode = new byte[1];
+        int receivedLength = await _underlyingSocket.ReceiveAsync(socketMode, SocketFlags.None).ConfigureAwait(false);
+
+        // Wait for the SocketMode, when received, if it is NOT 1 (Expected size, throw an exception)
+        if (receivedLength is not 1)
+            throw new InvalidDataException($"The other party has transmitted invalid data, namely, {receivedLength} bytes instead of 1.");
+
+        return (SocketMode)socketMode[0];
+    }
+
     #endregion Socket Implementation (Custom Methods)
 
     #region Socket Implementation (Non-Custom methods)

@@ -9,36 +9,47 @@ namespace CommunicationLibrary;
 /// </summary>
 public class Server
 {
+    #region Properties
+
     /// <summary>
     /// The delay in milliseconds between the execution of a <see cref="ServerLoop()"/> operation.
     /// </summary>
     private int delay;
+
     /// <summary>
     /// Is the server set to stop?
     /// </summary>
     private bool stopServer = false;
+
     /// <summary>
     /// Is the server currently running?
     /// </summary>
     private bool serverRunning = false;
+
     /// <summary>
     /// The IPAddress the server is listening.
     /// </summary>
     private readonly IPAddress listenToAddress;
+
     /// <summary>
     /// The networking port the server is listening.
     /// </summary>
     private readonly ushort listenToPort;
+
     /// <summary>
     /// The Server's connection listener
     /// </summary>
     private readonly TcpListener tcpListener;
+
+    #endregion Properties
+
     public Server(ushort networkPort, IPAddress listenTo)
     {
         listenToPort = networkPort;
         listenToAddress = listenTo;
         tcpListener = new(listenToAddress, listenToPort);
     }
+
     /// <summary>
     /// Start listening for TCP Connections.
     /// </summary>
@@ -78,7 +89,7 @@ public class Server
     }
     private async Task ServerLoop()
     {
-        const int bufferSize = 131072;
+        const int bufferSize = 131072; // 8192*16
         const int timeOutRecieve = 5000;
         while (!stopServer)
         {
@@ -94,15 +105,9 @@ public class Server
             clientSock.SendBufferSize = bufferSize;
             clientSock.ReceiveBufferSize = bufferSize;
 
-            byte[] socketMode = new byte[1];
-            int receivedLength = await clientSock.ReceiveAsync(socketMode, SocketFlags.None).ConfigureAwait(false);
-
-            // Wait for the SocketMode, when received, if it is NOT 1 (Expected size, throw an exception)
-            if (receivedLength is not 1)
-                throw new InvalidDataException($"The other party has transmitted invalid data, namely, {receivedLength} bytes instead of 1.");
-
-            SocketMode modeOfSocket = (SocketMode)socketMode[0];
             WrappedSocket wrappedSock = new(clientSock, useEncodedMessage: true);
+
+            SocketMode modeOfSocket = await wrappedSock.GetSocketMode().ConfigureAwait(false);
 
             byte remainingTries = 3;
             List<byte> buffer = new();
@@ -122,8 +127,7 @@ public class Server
                 }
             }
 
-            // TODO: Implement events that will fire after ConnectionInformation for the current, running connection is created.
-
+            // TODO: Implement events that will fire after ConnectionInformation for the current, running connection is created, then, add them to a dictionary to keep track of them.
 
             ConnectionInformation cnnInfo = new(modeOfSocket, buffer.ToArray(), wrappedSock);
         }

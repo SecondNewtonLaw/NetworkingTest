@@ -11,15 +11,19 @@ public enum SocketMode
     /// </summary>
     Hello = 0,
     /// <summary>
+    /// Used to query the remote party for other remote parties.
+    /// </summary>
+    Discover = 1,
+    /// <summary>
     /// Used to send a raw, UTF-8 string to the other party.
     /// </summary>
-    Message = 1,
+    Message = 2,
     /// <summary>
     /// Used to send a Base64 encoded, UTF-8, string to the other party
     /// </summary>
-    EncodedMessage = 2,
+    EncodedMessage = 3,
     /// <summary>
     /// Used to send a file in a Base64 encoded string to the other party.
     /// </summary>
-    File = 3,
+    File = 4,
 }
