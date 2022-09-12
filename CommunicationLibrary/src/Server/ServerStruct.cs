@@ -45,7 +45,7 @@ public struct ServerStruct
         }
         catch when (peers is null)
         {
-            throw new NullParameterException("Could not parse Peers, as the provided string was null.");
+            throw new ArgumentNullException(peers);
         }
         catch
         {
