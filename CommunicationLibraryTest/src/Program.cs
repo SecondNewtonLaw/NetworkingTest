@@ -25,6 +25,11 @@ internal static class Program
             {
                 ServerImplementation.Stop();
             }
+
+            if (runAsClient)
+            {
+                ClientImplementation.StopClient();
+            }
         };
 
         if ((runAsServer && runAsClient) || (!runAsServer && !runAsClient))

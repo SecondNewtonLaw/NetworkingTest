@@ -146,7 +146,6 @@ public class WrappedSocket : IEquatable<WrappedSocket>
         List<byte> receivedBytes = new();
         byte remainingTries = 3;
 
-        Console.WriteLine("Attempting to read socket content.");
         while (remainingTries > 0)
         {
             byte[] temporalBuffer = new byte[1024];
@@ -154,27 +153,19 @@ public class WrappedSocket : IEquatable<WrappedSocket>
             if (_underlyingSocket.Available > 0)
                 read = await _underlyingSocket.ReceiveAsync(temporalBuffer, SocketFlags.None).ConfigureAwait(false);
 
-            Console.WriteLine($"Read {read} bytes from socket");
-
             receivedBytes.AddRange(temporalBuffer);
-
-            Console.WriteLine("Start check.");
 
             if (read is 0)
             {
                 // Wait a timeout, expecting new data to flow in...
                 await Task.Delay(Constants.RECIEVE_TIMEOUT).ConfigureAwait(false);
                 remainingTries--; // Decrease remaining tries.
-                Console.WriteLine("Socket Content Timeout.");
             }
         }
-        Console.WriteLine("Making into Array.");
 
         byte[] arrayedBuffer = receivedBytes.ToArray();
 
-        Console.WriteLine("Clearing array");
-
-        //  receivedBytes.Clear(); // Clear list.
+        receivedBytes.Clear(); // Clear list.
         if (modeOfSocket is SocketMode.Message)
         {
             return Encoding.UTF8.GetString(arrayedBuffer);
@@ -189,7 +180,7 @@ public class WrappedSocket : IEquatable<WrappedSocket>
 
             string tmp = Encoding.ASCII.GetString(arrayedBuffer);
 
-            byte[] bytes = new byte[tmp.Length];
+            byte[] bytes = new byte[tmp.Length * 2];
 
             bool mistake = Convert.TryFromBase64String(tmp, bytes, out _);
 

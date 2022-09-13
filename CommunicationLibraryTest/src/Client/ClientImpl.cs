@@ -15,6 +15,16 @@ public partial class ClientImplementation
         await (tcpClient ??= new()).ConnectAsync(target);
         netStream = tcpClient.GetStream();
     }
+    public static void StopClient()
+    {
+        if (tcpClient is null || netStream is null)
+            throw new InvalidOperationException("You can not close a connection that does not exist at all!");
+
+        tcpClient.Client.Disconnect(reuseSocket: false);
+        tcpClient.Client.Dispose();
+        tcpClient.Dispose();
+        netStream.Dispose();
+    }
     public static async Task SendHello()
     {
         if (!tcpClient.Connected)
@@ -29,7 +39,7 @@ public partial class ClientImplementation
     public static async Task SendMessage()
     {
         if (!tcpClient.Connected)
-            throw new InvalidOperationException("Can not send HELLO SocketMode if there is no connection in place!");
+            throw new InvalidOperationException("Can not send EncodedMessage SocketMode if there is no connection in place!");
 
         tcpClient.SendBufferSize = Constants.BUF_SIZE;
         tcpClient.ReceiveBufferSize = Constants.BUF_SIZE;
@@ -37,17 +47,19 @@ public partial class ClientImplementation
         while (true)
         {
             string? msg = null;
+            Console.Write($"Send to {tcpClient.Client.RemoteEndPoint} > ");
+
             while (msg is null)
                 msg = Console.ReadLine();
 
-            Console.WriteLine("Sending message...");
+            Console.WriteLine($"Sending message to {tcpClient.Client.RemoteEndPoint}...");
 
             netStream.WriteByte((byte)SocketMode.EncodedMessage);
             await netStream.FlushAsync().ConfigureAwait(false); // Flush.
 
             await netStream.WriteAsync(Encoding.ASCII.GetBytes(Convert.ToBase64String(Encoding.UTF8.GetBytes(msg))));
             await netStream.FlushAsync().ConfigureAwait(false); // Flush.
-            Console.WriteLine("Message Sent.");
+            Console.WriteLine($"Message Sent to {tcpClient.Client.RemoteEndPoint}.");
         }
     }
 }
