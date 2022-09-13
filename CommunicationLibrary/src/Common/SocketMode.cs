@@ -11,23 +11,27 @@ public enum SocketMode
     /// </summary>
     Hello = 0,
     /// <summary>
-    /// Used to communicate to the remote party that you will send your <see cref="PeerIdentification"> class.
+    /// Used to request the remote party for their <see cref="PeerIdentification"> struct.
     /// </summary>
-    Identify = 1,
+    RequestIdentify = 1,
+    /// <summary>
+    /// Used to communicate to the remote party that you will send your <see cref="PeerIdentification"> struct.
+    /// </summary>
+    SendIdentify = 2,
     /// <summary>
     /// Used to query the remote party for other remote parties.
     /// </summary>
-    Discover = 2,
+    Discover = 3,
     /// <summary>
     /// Used to send a raw, UTF-8 string to the other party.
     /// </summary>
-    Message = 3,
+    Message = 4,
     /// <summary>
     /// Used to send a Base64 encoded, UTF-8, string to the other party
     /// </summary>
-    EncodedMessage = 4,
+    EncodedMessage = 5,
     /// <summary>
     /// Used to send a file in a Base64 encoded string to the other party.
     /// </summary>
-    File = 5,
+    File = 6,
 }

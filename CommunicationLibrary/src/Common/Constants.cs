@@ -8,7 +8,7 @@ public struct Constants
     /// <summary>
     /// Constant value representing the timeout before the next recieve attempt is made.
     /// </summary>
-    public const int RECIEVE_TIMEOUT = 5000;
+    public const int RECIEVE_TIMEOUT = 1666;
 
     /// <summary>
     /// Constant value representing the recieve and send buffer size used throughout the program.

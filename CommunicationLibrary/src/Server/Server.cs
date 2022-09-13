@@ -41,7 +41,10 @@ public class Server
     /// The Server's connection listener
     /// </summary>
     private readonly TcpListener tcpListener;
-
+    /// <summary>
+    /// Is Logging Enabled
+    /// </summary>
+    private bool logging = false;
     #endregion Properties
 
     public Server(ushort networkPort, IPAddress listenTo)
@@ -54,16 +57,21 @@ public class Server
     /// <summary>
     /// Start listening for TCP Connections.
     /// </summary>
-    public Thread StartListener(int delayBetweenChecks)
+    /// <param name="delayBetweenChecks">The delay applied between each check of connections.</param>
+    /// <param name="enableLogging">Defaults to false, should logging be enabled to the STDOUT</param>
+    /// <returns></returns>
+    public Thread StartListener(int delayBetweenChecks, bool enableLogging = false)
     {
         if (serverRunning)
             throw new AlreadyRunningException("The TCP Server is already running!");
 
-        tcpListener.Start();
         delay = delayBetweenChecks;
+        logging = enableLogging;
+        tcpListener.Start();
         Thread srvLoopThread = new(async () => await ServerLoop().ConfigureAwait(false))
         {
             Name = "P2P Server",
+            IsBackground = true, // True, else program won't close.
         };
         srvLoopThread.Start();
         serverRunning = true;
@@ -72,9 +80,15 @@ public class Server
     /// <summary>
     /// Stop listening for TCP Connections.
     /// </summary>
-    public void StopListener()
+    /// <param name="waitForConnections">Should the method wait a period of time before terminating the TcpListener? Defaults to True</param>
+
+    public void StopListener(bool waitForConnections = true)
     {
         stopServer = true;
+
+        if (waitForConnections)
+            Thread.Sleep(5000); // 5 Second delay.
+
         tcpListener.Stop();
     }
     /// <summary>
@@ -98,15 +112,27 @@ public class Server
             if (!PendingConnections())
                 continue;
 
-            Socket clientSock = await tcpListener.AcceptSocketAsync().ConfigureAwait(false);
+            Thread responser = new(async () => await HandleConnectionAsync().ConfigureAwait(false));
+            responser.Start();
+        }
+        serverRunning = false;
+    }
+    private async Task HandleConnectionAsync()
+    {
+        Socket clientSock = await tcpListener.AcceptSocketAsync().ConfigureAwait(false);
+        LogToStdOut($"Connection established to {clientSock.RemoteEndPoint}.");
+        // Set buffer sizes.
+        clientSock.SendBufferSize = Constants.BUF_SIZE;
+        clientSock.ReceiveBufferSize = Constants.BUF_SIZE;
 
-            // Set buffer sizes.
-            clientSock.SendBufferSize = Constants.BUF_SIZE;
-            clientSock.ReceiveBufferSize = Constants.BUF_SIZE;
+        LogToStdOut("Creating WrappedSocket to wrap around default System.Net.Sockets.Socket.");
 
-            WrappedSocket wrappedSock = new(clientSock, useEncodedMessage: true);
+        WrappedSocket wrappedSock = new(clientSock, useEncodedMessage: true);
 
+        while (true)
+        {
             SocketMode modeOfSocket = await wrappedSock.GetSocketMode().ConfigureAwait(false);
+            LogToStdOut($"Obtained SocketMode {modeOfSocket}.");
 
             Object? content = await wrappedSock.GetSocketContent(modeOfSocket).ConfigureAwait(false);
 
@@ -114,12 +140,23 @@ public class Server
             {
                 // TODO: OnConnectionStablished event.
                 // Hello Recieved, Fire OnConnectionStablished Event.
+                LogToStdOut($"Recieved Hello from {clientSock.RemoteEndPoint}.");
             }
 
-            // TODO: Implement events that will fire after ConnectionInformation for the current, running connection is created, then, add them to a dictionary to keep track of them.
-
-            ConnectionInformation cnnInfo = new(modeOfSocket, Encoding.UTF8.GetBytes((string)content!), wrappedSock);
+            if (modeOfSocket is SocketMode.EncodedMessage)
+            {
+                LogToStdOut($"Recieved EncodedMessage from {clientSock.RemoteEndPoint}.");
+                LogToStdOut($"Message is => {(string)content}");
+            }
         }
-        serverRunning = false;
+
+        // TODO: Implement events that will fire after ConnectionInformation for the current, running connection is created, then, add them to a dictionary to keep track of them.
+
+        // ConnectionInformation cnnInfo = new(modeOfSocket, Encoding.UTF8.GetBytes((string)content!), wrappedSock);
+    }
+    private void LogToStdOut(string str)
+    {
+        if (logging)
+            Console.WriteLine(str);
     }
 }

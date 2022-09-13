@@ -136,7 +136,7 @@ public class WrappedSocket : IEquatable<WrappedSocket>
     /// <param name="modeOfSocket">The mode in which the data should be treated.</param>
     /// <returns>A Task of Type Object containing the serialized data.</returns>
     /// <exception cref="NotImplementedException">Thrown if the API method is not implemented.</exception>
-    /// <exception cref="IncompleteDataException">Thrown if Base64 encoded string is incorrect, only applies to cases in which <paramref name="modeOfSocket"/> is <see cref="CommunicationLibrary.SocketMode.EncodedMessage"/>.</exception>
+    /// <exception cref="InvalidDataException">Thrown if Base64 encoded string is incorrect, only applies to cases in which <paramref name="modeOfSocket"/> is <see cref="CommunicationLibrary.SocketMode.EncodedMessage"/>.</exception>
     public async Task<Object?> GetSocketContent(SocketMode modeOfSocket)
     {
         // The Hello packet is meant to indicate a new connection, no other data is expected.
@@ -146,24 +146,35 @@ public class WrappedSocket : IEquatable<WrappedSocket>
         List<byte> receivedBytes = new();
         byte remainingTries = 3;
 
+        Console.WriteLine("Attempting to read socket content.");
         while (remainingTries > 0)
         {
             byte[] temporalBuffer = new byte[1024];
-            int read = await _underlyingSocket.ReceiveAsync(temporalBuffer, SocketFlags.None).ConfigureAwait(false);
+            int read = 0;
+            if (_underlyingSocket.Available > 0)
+                read = await _underlyingSocket.ReceiveAsync(temporalBuffer, SocketFlags.None).ConfigureAwait(false);
+
+            Console.WriteLine($"Read {read} bytes from socket");
 
             receivedBytes.AddRange(temporalBuffer);
+
+            Console.WriteLine("Start check.");
 
             if (read is 0)
             {
                 // Wait a timeout, expecting new data to flow in...
                 await Task.Delay(Constants.RECIEVE_TIMEOUT).ConfigureAwait(false);
                 remainingTries--; // Decrease remaining tries.
+                Console.WriteLine("Socket Content Timeout.");
             }
         }
+        Console.WriteLine("Making into Array.");
 
         byte[] arrayedBuffer = receivedBytes.ToArray();
 
-        receivedBytes.Clear(); // Clear list.
+        Console.WriteLine("Clearing array");
+
+        //  receivedBytes.Clear(); // Clear list.
         if (modeOfSocket is SocketMode.Message)
         {
             return Encoding.UTF8.GetString(arrayedBuffer);
@@ -171,29 +182,42 @@ public class WrappedSocket : IEquatable<WrappedSocket>
 
         if (modeOfSocket is SocketMode.EncodedMessage)
         {
-            string tmp = Encoding.UTF8.GetString(arrayedBuffer);
-            byte[] buffer = new byte[tmp.Length];
-            // Attempt conversion.
-            if (Convert.TryFromBase64String(tmp, buffer, out int writtenBytes))
-            {
-                // Get resultant bytes and return.
-                return Encoding.UTF8.GetString(buffer);
-            }
-            throw new IncompleteDataException($"The SocketMode indicated an Encoded, Base64 message, the length of the final string is {writtenBytes.ToString("G", CultureInfo.CurrentCulture)} bytes, but the expected one was {tmp.Length.ToString("G", CultureInfo.CurrentCulture)}. Have you verified parameter?");
+            // ! Double conversion explanation:
+            // 
+            // When sending UTF-8 encoded messages via sockets the Base64 decoder will fail to convert it back, to work around this 
+            // we encode the Base64 encoded, UTF-8 message into ASCII Base64 msg, and do the process in reverse, ASCII Base64 -> UTF-8 BASE64 -> UTF-8 String.
+
+            string tmp = Encoding.ASCII.GetString(arrayedBuffer);
+
+            byte[] bytes = new byte[tmp.Length];
+
+            bool mistake = Convert.TryFromBase64String(tmp, bytes, out _);
+
+            // Converted to some extent.
+            if (!mistake)
+                return Encoding.UTF8.GetString(bytes);
+
+            throw new InvalidDataException("The Base64 string was incorrectly formatted or straight forward, wrong!");
+
         }
 
         if (modeOfSocket is SocketMode.Discover)
         {
             // TODO: Implement a way to share Peers between Peers, or just to return the Server list.
+
         }
 
         if (modeOfSocket is SocketMode.File)
         {
-            // TODO: Implement a way to share Files between users. or just copy the byte[] to a MemoryStream and return it as such.
-            // ! Likely doing option (B) 
+            // Return byte[] as a MemoryStream.
+            return new MemoryStream(arrayedBuffer);
         }
 
         throw new NotImplementedException("Likely missing API implementation, or just, straightforward, forgot to finish a part of it.");
+    }
+    public async Task<PeerIdentification> GetPeerIdentificationAsync()
+    {
+        throw new NotImplementedException("Method not implemented!");
     }
 
     #endregion Socket Implementation (Custom Methods)
