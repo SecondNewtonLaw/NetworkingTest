@@ -34,14 +34,25 @@ public partial class ClientImplementation
         tcpClient.ReceiveBufferSize = Constants.BUF_SIZE;
 
         netStream.WriteByte((byte)SocketMode.Hello);
+        await netStream.WriteAsync(BitConverter.GetBytes(ulong.MinValue)).ConfigureAwait(false); // Size is 0.
+
         await netStream.FlushAsync().ConfigureAwait(false); // Flush.
     }
+
+    internal static void SendDisconnect()
+    {
+        if (!tcpClient.Connected)
+            throw new InvalidOperationException("Can not disconnect if there is no connection in place!");
+
+        netStream.WriteByte((byte)SocketMode.Disconnect); // Send SocketMode.Disconnect
+        netStream.Flush(); // Flush.
+    }
+
     public static async Task SendMessage()
     {
         if (!tcpClient.Connected)
             throw new InvalidOperationException("Can not send EncodedMessage SocketMode if there is no connection in place!");
 
-        tcpClient.SendBufferSize = Constants.BUF_SIZE;
         tcpClient.ReceiveBufferSize = Constants.BUF_SIZE;
 
         while (true)
@@ -54,10 +65,19 @@ public partial class ClientImplementation
 
             Console.WriteLine($"Sending message to {tcpClient.Client.RemoteEndPoint}...");
 
-            netStream.WriteByte((byte)SocketMode.EncodedMessage);
+            netStream.WriteByte((byte)SocketMode.EncodedMessage); // Send socket mode.
             await netStream.FlushAsync().ConfigureAwait(false); // Flush.
 
-            await netStream.WriteAsync(Encoding.ASCII.GetBytes(Convert.ToBase64String(Encoding.UTF8.GetBytes(msg))));
+            byte[] data = Encoding.UTF8.GetBytes(Convert.ToBase64String(Encoding.UTF8.GetBytes(msg)));
+            byte[] dataSizeAsLong = BitConverter.GetBytes(data.LongLength);
+
+            tcpClient.SendBufferSize = data.Length;
+
+            Console.WriteLine("Content: " + Encoding.UTF8.GetString(data));
+            Console.WriteLine($"Sending {BitConverter.ToInt64(dataSizeAsLong)} bytes as Length, with true size {data.LongLength} bytes");
+            await netStream.WriteAsync(dataSizeAsLong).ConfigureAwait(false);
+
+            await netStream.WriteAsync(data).ConfigureAwait(false);
             await netStream.FlushAsync().ConfigureAwait(false); // Flush.
             Console.WriteLine($"Message Sent to {tcpClient.Client.RemoteEndPoint}.");
         }

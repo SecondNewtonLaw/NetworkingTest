@@ -134,7 +134,16 @@ public class Server
             SocketMode modeOfSocket = await wrappedSock.GetSocketMode().ConfigureAwait(false);
             LogToStdOut($"Obtained SocketMode {modeOfSocket}.");
 
-            Object? content = await wrappedSock.GetSocketContent(modeOfSocket).ConfigureAwait(false);
+            if (modeOfSocket is SocketMode.Disconnect)
+            {
+                LogToStdOut($"Client {clientSock.RemoteEndPoint} requested disconnect. Terminating Connection Controller Thread and Connection");
+                wrappedSock.Dispose(); // Dispose of the WrappedSocket class.
+                return;
+            }
+
+            long expectedSize = await wrappedSock.GetSocketContentLength().ConfigureAwait(false);
+            LogToStdOut($"Determined content size to be of {expectedSize} bytes.");
+            Object? content = await wrappedSock.GetSocketContent(modeOfSocket, expectedSize).ConfigureAwait(false);
 
             if (content is null && modeOfSocket is SocketMode.Hello)
             {
@@ -145,8 +154,9 @@ public class Server
 
             if (modeOfSocket is SocketMode.EncodedMessage)
             {
+                // The message is a string 120% percent sure.
                 LogToStdOut($"Recieved EncodedMessage from {clientSock.RemoteEndPoint}.");
-                LogToStdOut($"Message is => {(string)content}");
+                LogToStdOut($"Message is => {content as string}");
             }
         }
 

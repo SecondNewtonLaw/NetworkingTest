@@ -28,6 +28,7 @@ internal static class Program
 
             if (runAsClient)
             {
+                ClientImplementation.SendDisconnect();
                 ClientImplementation.StopClient();
             }
         };
