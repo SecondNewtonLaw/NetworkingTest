@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Globalization;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -59,7 +60,7 @@ public class Server
     /// </summary>
     /// <param name="delayBetweenChecks">The delay applied between each check of connections.</param>
     /// <param name="enableLogging">Defaults to false, should logging be enabled to the STDOUT</param>
-    /// <returns></returns>
+    /// <returns>The Thread that is running the Server logic.</returns>
     public Thread StartListener(int delayBetweenChecks, bool enableLogging = false)
     {
         if (serverRunning)
@@ -77,11 +78,11 @@ public class Server
         serverRunning = true;
         return srvLoopThread;
     }
+
     /// <summary>
     /// Stop listening for TCP Connections.
     /// </summary>
     /// <param name="waitForConnections">Should the method wait a period of time before terminating the TcpListener? Defaults to True</param>
-
     public void StopListener(bool waitForConnections = true)
     {
         stopServer = true;
@@ -91,6 +92,7 @@ public class Server
 
         tcpListener.Stop();
     }
+
     /// <summary>
     /// Check for available, pending TCP connections.
     /// </summary>
@@ -102,6 +104,7 @@ public class Server
 
         return tcpListener.Pending();
     }
+
     private async Task ServerLoop()
     {
         while (!stopServer)
@@ -112,14 +115,19 @@ public class Server
             if (!PendingConnections())
                 continue;
 
+            // Create a Thread that will handle the recieved connection.
             Thread responser = new(async () => await HandleConnectionAsync().ConfigureAwait(false));
             responser.Start();
         }
         serverRunning = false;
     }
+
     private async Task HandleConnectionAsync()
     {
+        PeerIdentification identification = new();
         Socket clientSock = await tcpListener.AcceptSocketAsync().ConfigureAwait(false);
+        string clientName = clientSock.RemoteEndPoint.ToString();
+
         LogToStdOut($"Connection established to {clientSock.RemoteEndPoint}.");
         // Set buffer sizes.
         clientSock.SendBufferSize = Constants.BUF_SIZE;
@@ -136,27 +144,37 @@ public class Server
 
             if (modeOfSocket is SocketMode.Disconnect)
             {
-                LogToStdOut($"Client {clientSock.RemoteEndPoint} requested disconnect. Terminating Connection Controller Thread and Connection");
+                LogToStdOut($"Client {clientName} requested disconnect. Terminating Connection Controller Thread and Connection");
                 wrappedSock.Dispose(); // Dispose of the WrappedSocket class.
                 return;
             }
 
             long expectedSize = await wrappedSock.GetSocketContentLength().ConfigureAwait(false);
-            LogToStdOut($"Determined content size to be of {expectedSize} bytes.");
+            LogToStdOut($"Determined content size to be of {expectedSize.ToString("G", CultureInfo.InvariantCulture)} bytes.");
             Object? content = await wrappedSock.GetSocketContent(modeOfSocket, expectedSize).ConfigureAwait(false);
 
             if (content is null && modeOfSocket is SocketMode.Hello)
             {
                 // TODO: OnConnectionStablished event.
-                // Hello Recieved, Fire OnConnectionStablished Event.
-                LogToStdOut($"Recieved Hello from {clientSock.RemoteEndPoint}.");
+                // Hello Recieved, Call OnConnectionStablished.
+                LogToStdOut($"Recieved Hello from {clientName}.");
+                LogToStdOut($"Requesting Identify from {clientName}.");
+                await wrappedSock.SendSocketMode(SocketMode.RequestIdentify).ConfigureAwait(false);
+                continue;
             }
 
             if (modeOfSocket is SocketMode.EncodedMessage)
             {
                 // The message is a string 120% percent sure.
-                LogToStdOut($"Recieved EncodedMessage from {clientSock.RemoteEndPoint}.");
+                LogToStdOut($"Recieved EncodedMessage from {clientName}.");
                 LogToStdOut($"Message is => {content as string}");
+            }
+
+            if (modeOfSocket is SocketMode.SendIdentify)
+            {
+                identification = (PeerIdentification)content!;
+                Console.WriteLine($"Identified {clientName} as {identification.PeerName}.");
+                clientName = identification.PeerName;
             }
         }
 

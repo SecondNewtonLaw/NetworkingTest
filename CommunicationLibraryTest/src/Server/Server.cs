@@ -15,7 +15,6 @@ public partial class ServerImplementation
         srvInstance.StartListener(delayBetweenChecks: 500, enableLogging: true);
 
         AnsiConsole.MarkupLine("Awaiting Connections...");
-
     }
 
     public static void Stop()

@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using Newtonsoft.Json;
 
 namespace CommunicationLibrary;
 
@@ -36,15 +37,20 @@ public class WrappedSocket : IEquatable<WrappedSocket>, IDisposable
 
     #endregion Properties
 
-    #region Constructors
+    #region Constructors & Destructors
 
     public WrappedSocket(Socket socket, bool useEncodedMessage)
     {
         _underlyingSocket = socket;
         encodeMessage = useEncodedMessage;
     }
+    // Finalizer, aka, OnDestroy
+    ~WrappedSocket()
+    {
+        Dispose(disposing: true);
+    }
 
-    #endregion Constructors
+    #endregion Constructors & Destructors
 
     #region Overrides
 
@@ -129,27 +135,24 @@ public class WrappedSocket : IEquatable<WrappedSocket>, IDisposable
             disposedValue = true;
         }
     }
-    // Finalizer, aka, OnDestroy
-    ~WrappedSocket()
-    {
-        Dispose(disposing: true);
-    }
 
     public void Dispose()
     {
         Dispose(disposing: true);
-        GC.SuppressFinalize(this);
+        GC.SuppressFinalize(this); // Do not call Destructor/Finalizer.
     }
 
     #endregion Overrides
 
     #region Socket Implementation (Custom Methods)
+
     /// <summary>
-    /// Gets if the Underlying Socket has been disposed along with any other Managed objects.
+    /// Gets if the Underlying Socket has been disposed of along with any other Managed objects.
     /// </summary>
     /// <returns>True if they were disposed of, else False.</returns>
     public bool IsSocketDisposed()
         => disposedValue;
+
     /// <summary>
     /// Rises an <see cref="ObjectDisposedException"/> if the object has been disposed
     /// </summary>
@@ -158,6 +161,17 @@ public class WrappedSocket : IEquatable<WrappedSocket>, IDisposable
     {
         if (IsSocketDisposed())
             throw new ObjectDisposedException("This object has been disposed, and you can no longer access it!");
+    }
+    /// <summary>
+    /// Send SocketMode using the underlying socket used to start the WrappedSocket.
+    /// </summary>
+    /// <param name="modeOfSocket">The mode the socket wants to send.</param>
+    /// <returns>A Task representing the on-going asynchronous operation.</returns>
+    public async Task SendSocketMode(SocketMode modeOfSocket)
+    {
+        ThrowOnDisposed();
+
+        await _underlyingSocket.SendAsync(new byte[] { (byte)modeOfSocket }, SocketFlags.None).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -209,6 +223,8 @@ public class WrappedSocket : IEquatable<WrappedSocket>, IDisposable
         if (read != sizeof(long))
             throw new IncompleteDataException("The data sent was incomplete or trimmed.");
 
+
+        Console.WriteLine("Processed length of data to be " + BitConverter.ToInt64(length));
         return BitConverter.ToInt64(length);
     }
 
@@ -259,7 +275,7 @@ public class WrappedSocket : IEquatable<WrappedSocket>, IDisposable
             await Task.Delay(100).ConfigureAwait(false);
         }
         _underlyingSocket.ReceiveBufferSize = lastRBuff;
-        if (read != expectedSize)
+        if (read != expectedSize && receivedBytes.Count != expectedSize)
             throw new IncompleteDataException($"The socket promised {expectedSize} bytes of data, but recieved {read} bytes instead.");
 
         byte[] arrayedBuffer = receivedBytes.ToArray();
@@ -308,6 +324,22 @@ public class WrappedSocket : IEquatable<WrappedSocket>, IDisposable
         {
             // Return byte[] as a MemoryStream.
             return new MemoryStream(arrayedBuffer);
+        }
+
+        if (modeOfSocket is SocketMode.SendIdentify)
+        {
+            string tmp = Encoding.UTF8.GetString(arrayedBuffer);
+
+            try
+            {
+                byte[] bytes = Convert.FromBase64String(tmp);
+
+                return JsonConvert.DeserializeObject<PeerIdentification>(Encoding.UTF8.GetString(bytes));
+            }
+            catch
+            {
+                throw;
+            }
         }
 
         throw new NotImplementedException("Likely missing API implementation, or just, straightforward, forgot to finish a part of it.");

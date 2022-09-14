@@ -41,13 +41,15 @@ internal static class Program
 
         if (runAsServer)
         {
-            await ServerImplementation.Start(1337);
+            await ServerImplementation.Start(1337).ConfigureAwait(false);
         }
         if (runAsClient)
         {
-            await ClientImplementation.StartClient(new(IPAddress.Loopback, 1337));
-            await ClientImplementation.SendHello();
-            await ClientImplementation.SendMessage();
+            await ClientImplementation.StartClient(new(IPAddress.Loopback, 1337)).ConfigureAwait(false);
+            Thread listener = new(async () => await ClientImplementation.ListenerLoop().ConfigureAwait(false));
+            listener.Start();
+            await ClientImplementation.SendHello().ConfigureAwait(false);
+            await ClientImplementation.SendMessage().ConfigureAwait(false);
         }
 
         await Task.Delay(-1).ConfigureAwait(false);

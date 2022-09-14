@@ -16,18 +16,18 @@ public struct PeerIdentification
     /// The public name of the peer.
     /// </summary>
     [JsonProperty("name")]
-    public string peerName;
+    public string PeerName { get; init; }
     /// <summary>
     /// The port that will be used to communicate between peers.
     /// </summary>
     [JsonProperty("port")]
-    public int openPort;
+    public int OpenPort { get; init; }
     /// <summary>
-    /// The <see cref="IPAddress"/> of the peer.
+    /// The <see cref="IPAddress"/> of the peer represented as a string.
     /// </summary>
     /// <remarks>The <see cref="IPAddress"/> should be Internet Protocol Version 4.</remarks>
     [JsonProperty("ip")]
-    internal IPAddress peerIp;
+    public string PeerIp { get; init; }
 
     /// <summary>
     /// Serializes the current instance into a JSON.
@@ -36,5 +36,16 @@ public struct PeerIdentification
     public readonly string GetSerializedAsJson()
     {
         return JsonConvert.SerializeObject(this);
+    }
+    /// <summary>
+    /// The IPAddress of the peer.
+    /// </summary>
+    [JsonIgnore]
+    public readonly IPAddress IPV4
+    {
+        get
+        {
+            return IPAddress.Parse(PeerIp);
+        }
     }
 }
