@@ -6,6 +6,7 @@ namespace CommunicationLibrary;
 /// <summary>
 /// Struct containing information on the Server.
 /// </summary>
+[Serializable]
 public struct ServerStruct
 {
     public ServerStruct()
